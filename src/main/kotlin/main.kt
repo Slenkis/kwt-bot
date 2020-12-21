@@ -7,42 +7,37 @@ import org.jsoup.Jsoup
 import java.net.URL
 
 fun main() {
-    val page = Jsoup.parse(URL("https://yandex.ru/weather/moscow"), 300)
-    println("Температура: ${page.getTagContent(Weather.currentTemp)}°")
-    println("Ощущается как: ${page.getTagContent(Weather.currentTempOrient)}°")
-    println("Влажность: ${page.getTagContent(Weather.currentHumidity)}")
-    println("Ветер: ${page.getTagContent(Weather.currentWindSpeed)} м/с")
+    val url = URL(dotenv()["YANDEX_URL"] ?: throw IllegalArgumentException("No url provided"))
+    val botToken = dotenv()["BOT_TOKEN"] ?: throw IllegalArgumentException("No token provided")
 
     val bot = bot {
-        token = dotenv()["BOT_TOKEN"] ?: throw IllegalArgumentException("No token provided")
+        token = botToken
         dispatch {
+            // "/location" command
             command("location") {
                 bot.sendMessage(message.chat.id, "Введите локацию:")
             }
+            // any text request
             text {
-                val weather = buildString {
-                    appendLine(
-                        "Погода на ${
-                            page.getTagContent(Weather.currentTime)
-                                .replace("Сейчас ", "")
-                                .dropLast(2)
-                        }"
-                    )
+                val weather = Weather(Jsoup.parse(url, 300))
+                val weatherMessage = buildString {
+                    appendLine("Время: ${weather.currentTime}")
                     appendLine("--------------")
-                    append("Сейчас: ${page.getTagContent(Weather.currentTemp)}°, ")
-                    appendLine(page.getTagContent(Weather.currentSky))
-                    appendLine("Ощущается: ${page.getTagContent(Weather.currentTempOrient)}°")
-                    appendLine("Вчера: ${page.getTagContent(Weather.yesterdayTemp)}°")
+                    appendLine("Сейчас: ${weather.currentTemp}°, ${weather.currentSky}")
+                    appendLine("Ощущается: ${weather.currentTempOrient}°")
+                    appendLine("Вчера: ${weather.yesterdayTemp}°")
                     appendLine("--------------")
-                    appendLine("Влажность: ${page.getTagContent(Weather.currentHumidity)}")
-                    appendLine("Ветер: ${page.getTagContent(Weather.currentWindSpeed)} м/с")
+                    appendLine("Влажность: ${weather.currentHumidity}")
+                    appendLine("Ветер: ${weather.currentWindSpeed} м/с")
                     appendLine("--------------")
-                    appendLine("Восход: ${page.getTagContent(Weather.todaySunrise)}")
-                    appendLine("Закат: ${page.getTagContent(Weather.todaySunset)}")
+                    appendLine("Восход: ${weather.todaySunrise}")
+                    appendLine("Закат: ${weather.todaySunset}")
                 }
-                bot.sendMessage(chatId = message.chat.id, text = weather, disableNotification = true)
+                println(weatherMessage) // for debug
+                bot.sendMessage(chatId = message.chat.id, text = weatherMessage, disableNotification = true)
             }
         }
     }
+
     bot.startPolling()
 }
